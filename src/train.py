@@ -353,14 +353,14 @@ def trainModel(model,AmrDecoder, trainData, validData, dicts, optim,best_f1 = 0 
                 loss,root_loss,rel_loss = loss
                 num_data,num_root,num_rel = num_data
 
-                rel_report_loss += rel_loss.data[0]
-                rel_total_loss += rel_loss.data[0]
+                rel_report_loss += rel_loss.item()
+                rel_total_loss += rel_loss.item()
 
                 rel_total_words += num_rel
                 rel_report_words += num_rel
 
-                root_total_loss += root_loss.data[0]
-                root_report_loss += root_loss.data[0]
+                root_total_loss += root_loss.item()
+                root_report_loss += root_loss.item()
 
                 root_total_words += num_root
 
@@ -370,11 +370,11 @@ def trainModel(model,AmrDecoder, trainData, validData, dicts, optim,best_f1 = 0 
             loss,posterior_loss = loss
             posterior_loss = posterior_loss
             loss = loss + posterior_loss
-            report_loss += loss.data[0]
-            total_loss += loss.data[0]
+            report_loss += loss.item()
+            total_loss += loss.item()
             if opt.prior_t:
-                posterior_report_loss+= posterior_loss.data[0]
-                posterior_total_loss += posterior_loss.data[0]
+                posterior_report_loss+= posterior_loss.item()
+                posterior_total_loss += posterior_loss.item()
 
             total_words += num_data
             report_words += num_data
