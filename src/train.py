@@ -22,6 +22,11 @@ from torch.autograd import Variable
 import time
 from utility.Naive_Scores import *
 
+def SCALAR(x):
+    if hasattr(x, 'item'):
+        return x.item()
+    return x.data[0]
+
 def train_parser():
     parser = argparse.ArgumentParser(description='train')
     ## Data options
@@ -85,6 +90,9 @@ def train_parser():
                         help='Wheather train relation/root identification')
 
     #dimensions
+    parser.add_argument('-word_bio_dim', type=int, default=0,
+                        help='Word bio embedding sizes')
+    
     parser.add_argument('-word_dim', type=int, default=300,
                         help='Word embedding sizes')
     parser.add_argument('-dim', type=int, default=200,
@@ -353,14 +361,14 @@ def trainModel(model,AmrDecoder, trainData, validData, dicts, optim,best_f1 = 0 
                 loss,root_loss,rel_loss = loss
                 num_data,num_root,num_rel = num_data
 
-                rel_report_loss += rel_loss.item()
-                rel_total_loss += rel_loss.item()
+                rel_report_loss += SCALAR(rel_loss)
+                rel_total_loss += SCALAR(rel_loss)
 
                 rel_total_words += num_rel
                 rel_report_words += num_rel
 
-                root_total_loss += root_loss.item()
-                root_report_loss += root_loss.item()
+                root_total_loss += SCALAR(root_loss)
+                root_report_loss += SCALAR(root_loss)
 
                 root_total_words += num_root
 
@@ -370,11 +378,11 @@ def trainModel(model,AmrDecoder, trainData, validData, dicts, optim,best_f1 = 0 
             loss,posterior_loss = loss
             posterior_loss = posterior_loss
             loss = loss + posterior_loss
-            report_loss += loss.item()
-            total_loss += loss.item()
+            report_loss += SCALAR(loss)
+            total_loss += SCALAR(loss)
             if opt.prior_t:
-                posterior_report_loss+= posterior_loss.item()
-                posterior_total_loss += posterior_loss.item()
+                posterior_report_loss+= SCALAR(posterior_loss)
+                posterior_total_loss += SCALAR(posterior_loss)
 
             total_words += num_data
             report_words += num_data
@@ -528,22 +536,40 @@ def embedding_from_dicts( opt,dicts):
         word_initialized = 0
         lemma_initialized = 0
         word_embedding = nn.Embedding(dicts["word_dict"].size(),
-                                      300,   #size of glove dimension
+                                      opt.word_dim + opt.word_bio_dim,   # embedding dimsize
                               padding_idx=PAD)
         lemma_lut = nn.Embedding(dicts["lemma_dict"].size(),
                                   opt.lemma_dim,
                                   padding_idx=PAD)
+        if opt.word_bio_dim > 0:
+            print("Using bio vectors from {}".format(bio_embed_path))
+            bio_vecs = {}
+            with open(bio_embed_path) as f:
+                for line in f:
+                    line = line.split(' ')
+                    word = line[0]
+                    vec = list(map(float, line[1:]))
+                    bio_vecs[word] = vec
+
         with open(embed_path, 'r') as f:
             for line in f:
                 parts = line.rstrip().split()
                 id,id2 = word_dict[parts[0]],lemma_dict[parts[0]]
                 if id != UNK and id < word_embedding.num_embeddings:
-                    tensor = torch.FloatTensor([float(s) for s in parts[-word_embedding.embedding_dim:]]).type_as(word_embedding.weight.data)
+                    vec = list(map(float, parts[-opt.word_dim:]))
+                    if opt.word_bio_dim > 0:
+                        if parts[0] in bio_vecs:
+                            vec += bio_vecs[parts[0]]
+                        else:
+                            vec += [0] * opt.word_bio_dim
+                    tensor = torch.FloatTensor(vec).type_as(word_embedding.weight.data)
                     word_embedding.weight.data[id].copy_(tensor)
                     word_initialized += 1
 
                 if False and id2 != UNK and id2 < lemma_lut.num_embeddings :
-                    tensor = torch.FloatTensor([float(s) for s in parts[-lemma_lut.embedding_dim:]]).type_as(lemma_lut.weight.data)
+                    # Won't enter anyway (IF FALSE -_-)
+                    lemma_vec = list(map(float, parts[-opt.dim:]))
+                    tensor = torch.FloatTensor(lemma_vec).type_as(lemma_lut.weight.data)
                     lemma_lut.weight.data[id2].copy_(tensor)
                     lemma_initialized += 1
 

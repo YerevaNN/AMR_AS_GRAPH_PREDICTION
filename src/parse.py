@@ -12,6 +12,8 @@ from torch import cuda
 from parser.AMRProcessors import *
 from src.train import read_dicts,train_parser
 
+from tqdm import tqdm
+
 def generate_parser():
     parser = train_parser()
     parser.add_argument('-output', default=None)
@@ -46,8 +48,9 @@ if __name__ == "__main__":
         n = 0
         with open(out,'w') as out_f:
             with open(filepath,'r') as f:
-                line = f.readline()
-                while line != '' :
+                # line = f.readline()
+               # while line != '' :
+                for line in tqdm(f.readlines()):
                     if line.strip() != "":
                         output = Parser.parse_batch([line.strip()])
                         out_f.write("# ::snt "+line)
